@@ -24,14 +24,13 @@ layout["side"].split(Layout(name="side_top"), Layout(name="side_bottom"))
 
 # Ajouter du texte centré dans chaque section
 layout["header"].update(Panel(Align.center("Bibliothèque", vertical="middle")))
-layout["side_top"].update(Panel(Align.center("• [1] Livre\n• [2] ISBN\n• [3] Auteur\n• [4] Catégorie", vertical="middle")))
+layout["side_top"].update(Panel(Align.center("• [1] Livre\n• [2] ISBN\n• [3] Auteur\n• [4] Catégorie\n• [5] Réinitialiser", vertical="middle")))
 layout["side_bottom"].update(Panel(Align.center("Selection :", vertical="middle")))
 layout["body"].update(Panel(Align.center("Affichage :", vertical="middle")))
 
 def update_body(info):
     layout["body"].update(Panel(Align.center(info, vertical="middle")))
     console.print(layout)
-
 def update_side_bottom(message):
     layout["side_bottom"].update(Panel(Align.center(message, vertical="middle")))
     console.print(layout)
@@ -125,17 +124,21 @@ def get_top_books_by_category(category):
     except Exception as e:
         return f"Erreur lors de la requête : {str(e)}"
 
-while True:
-    console.print(layout)
+console.print(layout)
 
-    choice = Prompt.ask("Choisissez une option", choices=["1", "2", "3", "4"])
+while True:
+
+    choice = Prompt.ask("Choisissez une option", choices=["1", "2", "3", "4", "5"])
 
     # choix
     if choice == "1":
         update_side_bottom("Veuillez entrer le nom du livre :")
         book_name = Prompt.ask("Nom du livre")
-        result = search_openlibrary('title', book_name)
-        update_body(result)
+        if book_name == "5":
+            base = 0
+        else:
+            result = search_openlibrary('title', book_name)
+            update_body(result)
     
     elif choice == "2":
         update_side_bottom("Veuillez entrer l'ISBN du livre :")
@@ -154,3 +157,7 @@ while True:
         category = Prompt.ask("Catégorie du livre")
         result = get_top_books_by_category(category)
         update_body(result)
+
+    elif choice == "5":
+        update_body("Affichage :")
+        update_side_bottom("Selection :")
