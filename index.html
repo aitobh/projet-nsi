@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibliothèque</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #1E1E2F;
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            background-color: #28293E;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .side-menu {
+            width: 25%;
+            padding: 10px;
+            border-right: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-content {
+            flex: 1;
+            padding: 10px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #28293E;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #3E405A;
+        }
+        .hidden {
+            display: none;
+        }
+        .sub-buttons {
+            margin-top: 10px;
+        }
+        .result {
+            white-space: pre-wrap;
+            background-color: #28293E;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bibliothèque</h1>
+    </header>
+
+    <div class="container">
+        <div class="side-menu">
+            <button onclick="selectOption('livre')">Livre</button>
+            <button onclick="selectOption('isbn')">ISBN</button>
+            <button onclick="selectOption('auteur')">Auteur</button>
+            <button onclick="selectOption('categorie')">Catégorie</button>
+            <button onclick="toggleImageButtons()">Images</button>
+            <div id="imageButtons" class="hidden sub-buttons">
+                <button onclick="openAuthorImage()">Image de l'auteur</button>
+                <button onclick="openBookCover()">Couverture du livre</button>
+            </div>
+            <button onclick="resetDisplay()">Réinitialiser</button>
+        </div>
+
+        <div class="main-content">
+            <div id="selection">Sélection :</div>
+            <div id="display" class="result">Affichage :</div>
+        </div>
+    </div>
+
+    <script>
+        let authorImageUrl = "Pas de photo de l'auteur";
+        let bookCoverUrl = "Pas de couverture disponible";
+
+        // Fonction pour effectuer une recherche dans OpenLibrary
+        function searchOpenLibrary(queryType, queryValue) {
+            const baseUrl = `https://openlibrary.org/search.json?${queryType}=${queryValue}`;
+            return fetch(baseUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.num_found > 0) {
+                        const book = data.docs[0];
+                        const title = book.title || 'Titre non disponible';
+                        const author = book.author_name ? book.author_name.join(', ') : 'Auteur non disponible';
+                        const publishYear = book.first_publish_year || 'Année de publication non disponible';
+                        const editionCount = book.edition_count || 'Nombre d\'éditions non disponible';
+
+                        const authorKey = book.author_key ? book.author_key[0] : null;
+                        const coverId = book.cover_i;
+
+                        authorImageUrl = authorKey ? `https://covers.openlibrary.org/a/olid/${authorKey}-M.jpg` : "Pas de photo de l'auteur";
+                        bookCoverUrl = coverId ? `https://covers.openlibrary.org/b/id/${coverId}-M.jpg` : "Pas de couverture disponible";
+
+                        return `Titre: ${title}\nAuteur: ${author}\nPremière publication: ${publishYear}\nNombre d'éditions: ${editionCount}\n\nPhoto de l'auteur: ${authorImageUrl}\nCouverture du livre: ${bookCoverUrl}`;
+                    } else {
+                        return "Aucun résultat trouvé.";
+                    }
+                })
+                .catch(err => `Erreur lors de la requête : ${err}`);
+        }
+
+        // Fonction pour afficher les 5 œuvres les plus connues de l'auteur
+        function getTopWorksByAuthor(authorName) {
+            const authorSearchUrl = `https://openlibrary.org/search/authors.json?q=${authorName}`;
+
+            return fetch(authorSearchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.numFound > 0) {
+                        const authorKey = data.docs[0].key;
+                        const authorName = data.docs[0].name;
+
+                        return fetch(`https://openlibrary.org/authors/${authorKey}/works.json?limit=5`)
+                            .then(response => response.json())
+                            .then(worksData => {
+                                const topWorks = worksData.entries.slice(0, 5);
+                                let worksInfo = `Les 5 œuvres les plus connues de ${authorName} :\n\n`;
+                                topWorks.forEach((work, i) => {
+                                    worksInfo += `${i + 1}. ${work.title || "Titre non disponible"}\n`;
+                                });
+                                return worksInfo;
+                            });
+                    } else {
+                        return `Aucun auteur trouvé pour ${authorName}.`;
+                    }
+                })
+                .catch(err => `Erreur lors de la requête : ${err}`);
+        }
+
+        // Fonction pour obtenir les livres par catégorie
+        function getTopBooksByCategory(category) {
+            const subjectUrl = `https://openlibrary.org/subjects/${category}.json`;
+
+            return fetch(subjectUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.works && data.works.length > 0) {
+                        const topBooks = data.works.slice(0, 5);
+                        let booksInfo = `Les 5 livres les plus pertinents dans la catégorie '${category}' :\n\n`;
+                        topBooks.forEach((book, i) => {
+                            const authors = book.authors.map(author => author.name).join(', ') || "Auteur non disponible";
+                            booksInfo += `${i + 1}. ${book.title} par ${authors}\n`;
+                        });
+                        return booksInfo;
+                    } else {
+                        return `Aucun livre trouvé pour la catégorie ${category}.`;
+                    }
+                })
+                .catch(err => `Erreur lors de la requête : ${err}`);
+        }
+
+        // Fonction pour afficher le choix de l'utilisateur
+        function selectOption(option) {
+            const selection = document.getElementById('selection');
+            const display = document.getElementById('display');
+            let queryValue = '';
+
+            switch (option) {
+                case 'livre':
+                    queryValue = prompt("Veuillez entrer le nom du livre :");
+                    searchOpenLibrary('title', queryValue).then(result => display.textContent = result);
+                    break;
+                case 'isbn':
+                    queryValue = prompt("Veuillez entrer l'ISBN du livre :");
+                    searchOpenLibrary('isbn', queryValue).then(result => display.textContent = result);
+                    break;
+                case 'auteur':
+                    queryValue = prompt("Veuillez entrer le nom de l'auteur :");
+                    getTopWorksByAuthor(queryValue).then(result => display.textContent = result);
+                    break;
+                case 'categorie':
+                    queryValue = prompt("Veuillez entrer la catégorie du livre :");
+                    getTopBooksByCategory(queryValue).then(result => display.textContent = result);
+                    break;
+                default:
+                    break;
+            }
+            selection.textContent = `Sélection : ${option}`;
+        }
+
+        // Fonction pour réinitialiser l'affichage
+        function resetDisplay() {
+            document.getElementById('display').textContent = "Affichage :";
+            document.getElementById('selection').textContent = "Sélection :";
+        }
+
+        // Fonction pour basculer les boutons d'image
+        function toggleImageButtons() {
+            const imageButtons = document.getElementById('imageButtons');
+            imageButtons.classList.toggle('hidden');
+        }
+
+        // Fonction pour ouvrir l'image de l'auteur
+        function openAuthorImage() {
+            if (authorImageUrl !== "Pas de photo de l'auteur") {
+                window.open(authorImageUrl, '_blank');
+            } else {
+                alert("Aucune image d'auteur disponible.");
+            }
+        }
+
+        // Fonction pour ouvrir la couverture du livre
+        function openBookCover() {
+            if (bookCoverUrl !== "Pas de couverture disponible") {
+                window.open(bookCoverUrl, '_blank');
+            } else {
+                alert("Aucune couverture de livre disponible.");
+            }
+        }
+    </script>
+</body>
+</html>
